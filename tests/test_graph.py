@@ -1,7 +1,10 @@
-"""Tests for graph utilities (no grimp dependency needed — test pure logic)."""
+"""Tests for graph utilities."""
+
+from unittest.mock import MagicMock
 
 from grimp_tools.graph import (
     aggregate_apps,
+    build_edge_set,
     build_graph_stats,
     compute_metrics,
     find_cycles,
@@ -59,6 +62,45 @@ class TestAggregateApps:
         app_edges, app_adj = aggregate_apps(set())
         assert app_edges == {}
         assert app_adj == {}
+
+
+class TestBuildEdgeSet:
+    def _make_graph(
+        self, modules: list[str], imports: dict[str, list[str]]
+    ) -> MagicMock:
+        graph = MagicMock()
+        graph.modules = modules
+        graph.find_modules_directly_imported_by = lambda m: imports.get(m, [])
+        return graph
+
+    def test_filters_skip_modules(self) -> None:
+        graph = self._make_graph(
+            ["api.views", "api.migrations.001", "api.models"],
+            {"api.views": ["api.models", "api.migrations.001"]},
+        )
+        edges = build_edge_set(graph, {"api"}, {"migrations"})
+        assert edges == {("api.views", "api.models")}
+
+    def test_filters_external_packages(self) -> None:
+        graph = self._make_graph(
+            ["api.views", "api.models", "django.db"],
+            {"api.views": ["api.models", "django.db"]},
+        )
+        edges = build_edge_set(graph, {"api"}, set())
+        assert edges == {("api.views", "api.models")}
+
+    def test_cross_app_edges(self) -> None:
+        graph = self._make_graph(
+            ["api.views", "game.models"],
+            {"api.views": ["game.models"]},
+        )
+        edges = build_edge_set(graph, {"api", "game"}, set())
+        assert edges == {("api.views", "game.models")}
+
+    def test_empty_graph(self) -> None:
+        graph = self._make_graph([], {})
+        edges = build_edge_set(graph, {"api"}, set())
+        assert edges == set()
 
 
 class TestBuildGraphStats:
