@@ -6,6 +6,7 @@ import sys
 from grimp_tools import snapshot
 from grimp_tools.analyze import run as run_analyze
 from grimp_tools.check_names import run as run_check_names
+from grimp_tools.contracts_graph import run as run_contracts_graph
 
 
 def main() -> None:
@@ -57,9 +58,14 @@ def main() -> None:
         help="Only check files changed vs this git ref",
     )
 
+    # contracts-graph
+    contracts_graph_parser = subparsers.add_parser(
+        "contracts-graph", help="Visualize import-linter contracts"
+    )
+    contracts_graph_parser.add_argument("-o", "--output", help="Output file path")
+
     # placeholders
     subparsers.add_parser("focus-graph", help="Focused mermaid graph from git diff")
-    subparsers.add_parser("contracts-graph", help="Visualize import-linter contracts")
 
     args = parser.parse_args()
     if args.command is None:
@@ -90,6 +96,8 @@ def main() -> None:
             snapshot.cmd_summary()
     elif args.command == "check-names":
         run_check_names(ref=args.ref)
+    elif args.command == "contracts-graph":
+        run_contracts_graph(output=args.output)
     else:
         print(f"grimp-tools {args.command}: not yet implemented")
         sys.exit(1)
