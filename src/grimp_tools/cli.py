@@ -14,7 +14,9 @@ def main() -> None:
     # Placeholder subcommands — will be wired in subsequent phases
     subparsers.add_parser("analyze", help="Module/app dependency analysis and cycles")
 
-    snapshot_parser = subparsers.add_parser("snapshot", help="Save/diff/summary of dependency snapshots")
+    snapshot_parser = subparsers.add_parser(
+        "snapshot", help="Save/diff/summary of dependency snapshots"
+    )
     snapshot_parser.add_argument("action", choices=["save", "diff", "summary"])
 
     subparsers.add_parser("focus-graph", help="Focused mermaid graph from git diff")

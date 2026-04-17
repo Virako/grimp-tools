@@ -6,19 +6,61 @@ from pathlib import Path
 
 DEFAULT_SKIP_MODULES = frozenset({"migrations", "admin", "apps", "management"})
 DEFAULT_SNAPSHOT_PATH = Path("docs/deps-snapshot.json")
-DEFAULT_STANDARD_NAMES = frozenset({
-    "models", "managers", "views", "serializers", "services", "urls",
-    "admin", "apps", "forms", "signals", "tasks", "choices", "fields",
-    "widgets", "middleware", "decorators", "exceptions", "types",
-    "perms", "filters", "queries", "factories", "report", "adapters",
-    "validators", "defaults", "enums", "mixins", "contexts", "caches",
-    "actions", "tags", "pagination", "storage", "config", "help_texts",
-    "conftest", "router", "settings", "wsgi", "manage",
-})
-DEFAULT_EXEMPT_DIRS = frozenset({
-    "migrations", "management", "commands", "scripts", "docs",
-    "templatetags",
-})
+DEFAULT_STANDARD_NAMES = frozenset(
+    {
+        "models",
+        "managers",
+        "views",
+        "serializers",
+        "services",
+        "urls",
+        "admin",
+        "apps",
+        "forms",
+        "signals",
+        "tasks",
+        "choices",
+        "fields",
+        "widgets",
+        "middleware",
+        "decorators",
+        "exceptions",
+        "types",
+        "perms",
+        "filters",
+        "queries",
+        "factories",
+        "report",
+        "adapters",
+        "validators",
+        "defaults",
+        "enums",
+        "mixins",
+        "contexts",
+        "caches",
+        "actions",
+        "tags",
+        "pagination",
+        "storage",
+        "config",
+        "help_texts",
+        "conftest",
+        "router",
+        "settings",
+        "wsgi",
+        "manage",
+    }
+)
+DEFAULT_EXEMPT_DIRS = frozenset(
+    {
+        "migrations",
+        "management",
+        "commands",
+        "scripts",
+        "docs",
+        "templatetags",
+    }
+)
 
 
 def _load_pyproject(path: Path | None = None) -> dict:

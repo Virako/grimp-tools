@@ -12,11 +12,15 @@ dependencies = [
     "import-linter>=2.11",
 ]
 
-[project.optional-dependencies]
-dev = ["pytest", "ruff"]
-
 [project.scripts]
 grimp-tools = "grimp_tools.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.15.11",
+]
