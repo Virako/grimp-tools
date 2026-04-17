@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "grimp-tools"
+version = "0.1.0"
+description = "Dependency analysis, coupling enforcement, and architectural contract visualization for Django/Python projects."
+requires-python = ">=3.11"
+dependencies = [
+    "grimp>=3.0",
+    "import-linter>=2.11",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[project.scripts]
+grimp-tools = "grimp_tools.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
