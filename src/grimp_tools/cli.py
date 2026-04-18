@@ -7,6 +7,7 @@ from grimp_tools import snapshot
 from grimp_tools.analyze import run as run_analyze
 from grimp_tools.check_names import run as run_check_names
 from grimp_tools.contracts_graph import run as run_contracts_graph
+from grimp_tools.focus import run as run_focus_graph
 
 
 def main() -> None:
@@ -64,8 +65,17 @@ def main() -> None:
     )
     contracts_graph_parser.add_argument("-o", "--output", help="Output file path")
 
-    # placeholders
-    subparsers.add_parser("focus-graph", help="Focused mermaid graph from git diff")
+    # focus-graph
+    focus_parser = subparsers.add_parser(
+        "focus-graph", help="Focused mermaid graph from git diff"
+    )
+    focus_parser.add_argument(
+        "--new", default="HEAD", help="New ref to compare (default: HEAD)"
+    )
+    focus_parser.add_argument(
+        "--old", default=None, help="Old ref to compare against (default: NEW~1)"
+    )
+    focus_parser.add_argument("-o", "--output", help="Output file path")
 
     args = parser.parse_args()
     if args.command is None:
@@ -98,6 +108,5 @@ def main() -> None:
         run_check_names(ref=args.ref)
     elif args.command == "contracts-graph":
         run_contracts_graph(output=args.output)
-    else:
-        print(f"grimp-tools {args.command}: not yet implemented")
-        sys.exit(1)
+    elif args.command == "focus-graph":
+        run_focus_graph(new_ref=args.new, old_ref=args.old, output=args.output)
