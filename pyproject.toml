@@ -6,11 +6,32 @@ build-backend = "setuptools.build_meta"
 name = "grimp-tools"
 version = "0.1.0"
 description = "Dependency analysis, coupling enforcement, and architectural contract visualization for Django/Python projects."
+readme = "README.md"
+license = "GPL-3.0-or-later"
 requires-python = ">=3.11"
+authors = [
+    { name = "Victor Ramirez de la Corte", email = "me@virako.es" },
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Quality Assurance",
+    "Framework :: Django",
+]
 dependencies = [
     "grimp>=3.0",
     "import-linter>=2.11",
 ]
+
+[project.urls]
+Homepage = "https://github.com/Virako/grimp-tools"
+Repository = "https://github.com/Virako/grimp-tools"
+Issues = "https://github.com/Virako/grimp-tools/issues"
 
 [project.scripts]
 grimp-tools = "grimp_tools.cli:main"
