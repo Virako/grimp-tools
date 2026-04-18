@@ -7,7 +7,7 @@ Reads configuration from the consumer project's `pyproject.toml`. Zero config ne
 ## Installation
 
 ```bash
-uv add --dev grimp-tools@git+https://github.com/wadobo/grimp-tools.git
+uv add --dev grimp-tools
 ```
 
 Requires Python 3.11+.
@@ -146,3 +146,16 @@ check:
 	lint-imports
 	grimp-tools check-names
 ```
+
+## Releasing
+
+Publishing is automated via GitHub Actions with [Trusted Publishers](https://docs.pypi.org/trusted-publishers/) (OIDC, no tokens needed).
+
+To publish a new version:
+
+1. Update `version` in `pyproject.toml`
+2. Commit and push to `main`
+3. Create a git tag: `git tag v0.2.0 && git push origin v0.2.0`
+4. Go to GitHub > Releases > "Draft a new release", select the tag, and click "Publish release"
+
+The workflow (`.github/workflows/publish.yml`) builds and uploads to PyPI automatically via Trusted Publishers.
