@@ -49,6 +49,7 @@ DEFAULT_STANDARD_NAMES = frozenset(
         "settings",
         "wsgi",
         "manage",
+        "celery",
     }
 )
 DEFAULT_EXEMPT_DIRS = frozenset(

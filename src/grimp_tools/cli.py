@@ -1,6 +1,7 @@
 """Main CLI entry point with subcommands."""
 
 import argparse
+import os
 import sys
 
 from grimp_tools import snapshot
@@ -11,6 +12,8 @@ from grimp_tools.focus import run as run_focus_graph
 
 
 def main() -> None:
+    # Add current directory to the path, as this doesn't happen automatically.
+    sys.path.insert(0, os.getcwd())
     parser = argparse.ArgumentParser(
         prog="grimp-tools",
         description="Dependency analysis and coupling enforcement for Django/Python projects.",
