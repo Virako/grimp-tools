@@ -6,6 +6,31 @@ from pathlib import Path
 
 from grimp_tools.config import load_root_packages
 
+# --- Mermaid styling constants ---
+
+ALLOWED_COLOR = "#2e7d32"
+FORBIDDEN_COLOR = "#c62828"
+PRIMARY_FILL = "fill:#e3f2fd,stroke:#1565c0"
+ALLOWED_FILL = "fill:#c8e6c9,stroke:#2e7d32"
+FORBIDDEN_FILL = "fill:#ffcdd2,stroke:#c62828"
+NEUTRAL_FILL = "fill:#fff9c4,stroke:#f9a825"
+DEBT_NODE_STYLE = "fill:#ffcdd2,stroke:#c62828,stroke-width:1px"
+
+
+def _link_allowed(idx: int) -> str:
+    return f"    linkStyle {idx} stroke:{ALLOWED_COLOR},stroke-width:2px"
+
+
+def _link_forbidden(idx: int, width: int = 2) -> str:
+    return f"    linkStyle {idx} stroke:{FORBIDDEN_COLOR},stroke-width:{width}px"
+
+
+def _style_node(node_id: str, fill: str) -> str:
+    return f"    style {node_id} {fill}"
+
+
+# --- Helpers ---
+
 
 def _parse_edge(edge: str) -> tuple[str, str]:
     parts = edge.split(" -> ")
@@ -30,14 +55,20 @@ def _split_ignores(ignores: list[str]) -> tuple[list[str], list[tuple[str, str]]
     return valid, debt
 
 
-def _is_internal_forbidden(contract: dict, root_packages: set[str]) -> bool:
-    """Check if forbidden_modules are internal (root packages) vs external."""
+def _is_app_isolation(contract: dict, root_packages: set[str]) -> bool:
+    """Check if this is an app-level isolation contract (e.g. core vs business).
+
+    True when both source and forbidden are concrete app names (no wildcards).
+    Wildcard patterns like *.models indicate layer-level rules, not app isolation.
+    """
+    sources = contract.get("source_modules", [])
     forbidden = contract.get("forbidden_modules", [])
-    for mod in forbidden:
-        clean = mod.replace("*.", "").split(".")[0]
-        if clean in root_packages:
-            return True
-    return False
+    if not sources or not forbidden:
+        return False
+    all_concrete = all(not _is_wildcard(m) for m in sources + forbidden)
+    if not all_concrete:
+        return False
+    return any(m in root_packages for m in sources)
 
 
 # --- Rule renderers per contract type ---
@@ -64,15 +95,15 @@ def render_rule_shared(contract: dict) -> str:
     lines.append("    business -- can import --> core")
     lines.append("    core -.-x business")
     lines.append("")
-    lines.append("    linkStyle 0 stroke:#2e7d32,stroke-width:2px")
-    lines.append("    linkStyle 1 stroke:#c62828,stroke-width:2px")
-    lines.append("    style core fill:#c8e6c9,stroke:#2e7d32")
-    lines.append("    style business fill:#fff9c4,stroke:#f9a825")
+    lines.append(_link_allowed(0))
+    lines.append(_link_forbidden(1))
+    lines.append(_style_node("core", ALLOWED_FILL))
+    lines.append(_style_node("business", NEUTRAL_FILL))
     return "\n".join(lines)
 
 
-def render_rule_layers(contract: dict, valid_patterns: list[str]) -> str:
-    """Layer isolation: source cannot import forbidden, with valid exceptions."""
+def render_rule_forbidden(contract: dict, valid_patterns: list[str]) -> str:
+    """Forbidden contract: source cannot import forbidden, with valid exceptions."""
     sources = contract.get("source_modules", [])
     forbidden = contract.get("forbidden_modules", [])
 
@@ -83,15 +114,12 @@ def render_rule_layers(contract: dict, valid_patterns: list[str]) -> str:
     src_label = " / ".join(s.replace("*.", "") for s in sources)
     lines.append(f'        src["{src_label}"]')
 
-    if valid_patterns:
-        for i, vp in enumerate(valid_patterns):
-            _, dst = _parse_edge(vp)
-            dst_label = dst.replace("*.", "")
-            lines.append(f'        v{i}["{dst_label}"]')
+    for i, vp in enumerate(valid_patterns):
+        _, dst = _parse_edge(vp)
+        lines.append(f'        v{i}["{dst.replace("*.", "")}"]')
 
     for i, f in enumerate(forbidden):
-        f_label = f.replace("*.", "")
-        lines.append(f'        f{i}["{f_label}"]')
+        lines.append(f'        f{i}["{f.replace("*.", "")}"]')
 
     lines.append("    end")
     lines.append("")
@@ -99,24 +127,24 @@ def render_rule_layers(contract: dict, valid_patterns: list[str]) -> str:
     link_idx = 0
     style_lines = []
 
-    for i, vp in enumerate(valid_patterns):
+    for i in range(len(valid_patterns)):
         lines.append(f"    src -- can import --> v{i}")
-        style_lines.append(f"    linkStyle {link_idx} stroke:#2e7d32,stroke-width:2px")
+        style_lines.append(_link_allowed(link_idx))
         link_idx += 1
 
-    for i, f in enumerate(forbidden):
+    for i in range(len(forbidden)):
         lines.append(f"    src -.-x f{i}")
-        style_lines.append(f"    linkStyle {link_idx} stroke:#c62828,stroke-width:2px")
+        style_lines.append(_link_forbidden(link_idx))
         link_idx += 1
 
     lines.append("")
     lines.extend(style_lines)
 
     for i in range(len(valid_patterns)):
-        lines.append(f"    style v{i} fill:#c8e6c9,stroke:#2e7d32")
+        lines.append(_style_node(f"v{i}", ALLOWED_FILL))
     for i in range(len(forbidden)):
-        lines.append(f"    style f{i} fill:#ffcdd2,stroke:#c62828")
-    lines.append("    style src fill:#e3f2fd,stroke:#1565c0")
+        lines.append(_style_node(f"f{i}", FORBIDDEN_FILL))
+    lines.append(_style_node("src", PRIMARY_FILL))
 
     return "\n".join(lines)
 
@@ -130,8 +158,7 @@ def render_rule_external(contract: dict, valid_patterns: list[str]) -> str:
     lines.append('    subgraph internal["Internal Layers"]')
     lines.append("        direction TB")
     for i, s in enumerate(sources):
-        label = s.replace("*.", "")
-        lines.append(f'        s{i}["{label}"]')
+        lines.append(f'        s{i}["{s.replace("*.", "")}"]')
     lines.append("    end")
     lines.append("")
     lines.append('    subgraph external["External Libs"]')
@@ -144,12 +171,10 @@ def render_rule_external(contract: dict, valid_patterns: list[str]) -> str:
     link_idx = 0
     style_lines = []
 
-    for i, s in enumerate(sources):
-        for j, f in enumerate(forbidden):
+    for i in range(len(sources)):
+        for j in range(len(forbidden)):
             lines.append(f"    s{i} -.-x ext{j}")
-            style_lines.append(
-                f"    linkStyle {link_idx} stroke:#c62828,stroke-width:1px"
-            )
+            style_lines.append(_link_forbidden(link_idx, width=1))
             link_idx += 1
 
     for vp in valid_patterns:
@@ -158,27 +183,27 @@ def render_rule_external(contract: dict, valid_patterns: list[str]) -> str:
         lines.append(
             f'    vp_{src_label}["{src_label}"] -- allowed --> ext_valid["{dst}"]'
         )
-        style_lines.append(f"    linkStyle {link_idx} stroke:#2e7d32,stroke-width:2px")
-        lines.append(f"    style vp_{src_label} fill:#c8e6c9,stroke:#2e7d32")
+        style_lines.append(_link_allowed(link_idx))
+        lines.append(_style_node(f"vp_{src_label}", ALLOWED_FILL))
         link_idx += 1
 
     lines.append("")
     lines.extend(style_lines)
-    lines.append("    style internal fill:#e3f2fd,stroke:#1565c0")
-    lines.append("    style external fill:#ffcdd2,stroke:#c62828")
+    lines.append(_style_node("internal", PRIMARY_FILL))
+    lines.append(_style_node("external", FORBIDDEN_FILL))
 
     return "\n".join(lines)
 
 
-def render_rule_cycles(contract: dict, valid_patterns: list[str]) -> str:
+def render_rule_acyclic(valid_patterns: list[str]) -> str:
     """Acyclic: no dependency cycles between apps."""
     lines = ["graph LR"]
     lines.append('    A["app A"] --> B["app B"] --> C["app C"]')
     lines.append("    C -.-x A")
     lines.append("")
-    lines.append("    linkStyle 0 stroke:#2e7d32,stroke-width:2px")
-    lines.append("    linkStyle 1 stroke:#2e7d32,stroke-width:2px")
-    lines.append("    linkStyle 2 stroke:#c62828,stroke-width:2px")
+    lines.append(_link_allowed(0))
+    lines.append(_link_allowed(1))
+    lines.append(_link_forbidden(2))
 
     if valid_patterns:
         lines.append("")
@@ -189,11 +214,66 @@ def render_rule_cycles(contract: dict, valid_patterns: list[str]) -> str:
     return "\n".join(lines)
 
 
+def render_rule_layers(contract: dict) -> str:
+    """Layers contract: render the layer hierarchy as a vertical flow."""
+    layers = contract.get("layers", [])
+    containers = contract.get("containers", [])
+
+    lines = ["graph TD"]
+
+    for i, layer_str in enumerate(layers):
+        is_independent = "|" in layer_str
+        sep = "|" if is_independent else ":"
+        parts = [p.strip().strip("()") for p in layer_str.split(sep)]
+        label = " | ".join(parts) if is_independent else " : ".join(parts)
+        lines.append(f'    L{i}["{label}"]')
+
+    lines.append("")
+
+    link_idx = 0
+    for i in range(len(layers) - 1):
+        lines.append(f"    L{i} --> L{i + 1}")
+        link_idx += 1
+
+    lines.append("")
+
+    for i in range(len(layers)):
+        if i == 0:
+            fill = PRIMARY_FILL
+        elif i == len(layers) - 1:
+            fill = ALLOWED_FILL
+        else:
+            fill = NEUTRAL_FILL
+        lines.append(_style_node(f"L{i}", fill))
+
+    for i in range(link_idx):
+        lines.append(_link_allowed(i))
+
+    if containers:
+        lines.append(f"    %% Applied to {len(containers)} containers (apps)")
+
+    return "\n".join(lines)
+
+
+MAX_DEBT_EDGES = 30
+
+
 def render_debt_mermaid(debt: list[tuple[str, str]]) -> str | None:
-    """Render violations for a contract."""
+    """Render violations for a contract.
+
+    When there are too many edges, aggregates at the app level
+    with edge labels showing the count.
+    """
     if not debt:
         return None
 
+    if len(debt) > MAX_DEBT_EDGES:
+        return _render_debt_aggregated(debt)
+    return _render_debt_detailed(debt)
+
+
+def _render_debt_detailed(debt: list[tuple[str, str]]) -> str:
+    """Render each violation as an individual edge."""
     lines = ["graph LR"]
 
     all_nodes: set[str] = set()
@@ -221,13 +301,68 @@ def render_debt_mermaid(debt: list[tuple[str, str]]) -> str | None:
 
     lines.append("")
     for i in range(len(debt)):
-        lines.append(f"    linkStyle {i} stroke:#c62828,stroke-width:2px")
+        lines.append(_link_forbidden(i))
     for mod in sorted(all_nodes):
-        lines.append(
-            f"    style {node_id[mod]} fill:#ffcdd2,stroke:#c62828,stroke-width:1px"
-        )
+        lines.append(_style_node(node_id[mod], DEBT_NODE_STYLE))
 
     return "\n".join(lines)
+
+
+def _render_debt_aggregated(debt: list[tuple[str, str]]) -> str:
+    """Render violations aggregated at app level with counts."""
+    lines = ["graph LR"]
+
+    app_edges: dict[tuple[str, str], int] = defaultdict(int)
+    for src, dst in debt:
+        src_app = src.split(".")[0]
+        dst_app = dst.split(".")[0]
+        app_edges[(src_app, dst_app)] += 1
+
+    all_apps = sorted({a for pair in app_edges for a in pair})
+    node_id = {app: f"a{i}" for i, app in enumerate(all_apps)}
+
+    for app in all_apps:
+        lines.append(f'    {node_id[app]}["{app}"]')
+
+    lines.append("")
+
+    link_idx = 0
+    for (src_app, dst_app), count in sorted(app_edges.items()):
+        lines.append(f"    {node_id[src_app]} -.-x|{count}| {node_id[dst_app]}")
+        link_idx += 1
+
+    lines.append("")
+    for i in range(link_idx):
+        lines.append(_link_forbidden(i))
+    for app in all_apps:
+        lines.append(_style_node(node_id[app], DEBT_NODE_STYLE))
+
+    return "\n".join(lines)
+
+
+# --- Renderer dispatch ---
+
+
+def _select_renderer(
+    contract: dict, root_packages: set[str], valid_patterns: list[str]
+) -> str:
+    """Select and call the appropriate renderer based on contract type."""
+    ctype = contract.get("type", "")
+
+    if ctype == "acyclic_siblings":
+        return render_rule_acyclic(valid_patterns)
+    if ctype == "layers":
+        return render_rule_layers(contract)
+    if ctype == "independence":
+        return render_rule_acyclic(valid_patterns)
+    if ctype == "forbidden":
+        if _is_app_isolation(contract, root_packages):
+            return render_rule_shared(contract)
+        return render_rule_external(contract, valid_patterns)
+    return render_rule_forbidden(contract, valid_patterns)
+
+
+# --- HTML output ---
 
 
 def render_html(sections: list[tuple[str, str]]) -> str:
@@ -259,8 +394,8 @@ def render_html(sections: list[tuple[str, str]]) -> str:
   .legend {{ display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; }}
   .legend span {{ display: flex; align-items: center; gap: 4px; }}
   .edge-sample {{ display: inline-block; width: 40px; height: 2px; vertical-align: middle; }}
-  .edge-allowed {{ background: #2e7d32; }}
-  .edge-debt {{ background: repeating-linear-gradient(90deg, #c62828 0 4px, transparent 4px 8px); }}
+  .edge-allowed {{ background: {ALLOWED_COLOR}; }}
+  .edge-debt {{ background: repeating-linear-gradient(90deg, {FORBIDDEN_COLOR} 0 4px, transparent 4px 8px); }}
   .section {{ padding: 16px 20px; border-bottom: 1px solid #eee; }}
   .section h3 {{ margin: 0 0 12px; font-size: 15px; color: #333; }}
   .text-block {{ font-size: 13px; color: #666; padding: 4px 0; }}
@@ -283,22 +418,7 @@ def render_html(sections: list[tuple[str, str]]) -> str:
 </html>"""
 
 
-def _select_renderer(
-    contract: dict, root_packages: set[str], valid_patterns: list[str]
-) -> str:
-    """Select and call the appropriate renderer based on contract type."""
-    ctype = contract.get("type", "")
-
-    if ctype == "independence":
-        return render_rule_cycles(contract, valid_patterns)
-    if ctype == "layers":
-        return render_rule_layers(contract, valid_patterns)
-    if ctype == "forbidden":
-        if _is_internal_forbidden(contract, root_packages):
-            return render_rule_shared(contract)
-        return render_rule_external(contract, valid_patterns)
-    # Fallback for unknown types
-    return render_rule_layers(contract, valid_patterns)
+# --- Entry point ---
 
 
 def run(output: str | None = None) -> None:
