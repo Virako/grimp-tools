@@ -59,6 +59,32 @@ grimp-tools focus-graph --new main --old main~1      # specific refs
 grimp-tools focus-graph -o docs/focus-graph.md       # save .md + .html
 ```
 
+### app-graph
+
+Doughnut graph for a single app: detailed module-to-module edges inside the focal app, and aggregated cross-app counts (in / out) on the outer ring. Useful for per-app architectural review.
+
+```bash
+grimp-tools app-graph contest                          # mermaid → stdout
+grimp-tools app-graph contest -o docs/graphs/contest.md
+grimp-tools app-graph dressage --format dot --top 5    # 5 most coupled apps
+grimp-tools app-graph dressage --no-external           # only internal subgraph
+grimp-tools app-graph story --exclude tests,factories  # extra parts to skip
+```
+
+Example output (mermaid):
+
+```mermaid
+graph LR
+  subgraph "contest (focal app)"
+    contest_models["models"]
+    contest_views["views"]
+    contest_views --> contest_models
+  end
+
+  videos -.->|3| contest
+  contest -.->|2| videos
+```
+
 ### contracts-graph
 
 Visualize `import-linter` contracts as Mermaid diagrams.

@@ -6,6 +6,7 @@ import sys
 
 from grimp_tools import snapshot
 from grimp_tools.analyze import run as run_analyze
+from grimp_tools.app_graph import run as run_app_graph
 from grimp_tools.check_names import run as run_check_names
 from grimp_tools.contracts_graph import run as run_contracts_graph
 from grimp_tools.focus import run as run_focus_graph
@@ -80,6 +81,71 @@ def main() -> None:
     )
     focus_parser.add_argument("-o", "--output", help="Output file path")
 
+    # app-graph
+    app_graph_parser = subparsers.add_parser(
+        "app-graph",
+        help="Doughnut graph for a single app: internal detail + cross-app counts",
+    )
+    app_graph_parser.add_argument(
+        "app",
+        help="Focal app (must be in root_packages)",
+    )
+    app_graph_parser.add_argument(
+        "-o", "--output",
+        help="Output file (default: stdout)",
+    )
+    app_graph_parser.add_argument(
+        "--format",
+        choices=["mermaid", "dot"],
+        default="mermaid",
+    )
+    app_graph_parser.add_argument(
+        "--top",
+        type=int,
+        default=None,
+        help="Limit cross-app edges to top N apps by total edges (in + out)",
+    )
+    app_graph_parser.add_argument(
+        "--no-internal",
+        action="store_true",
+        help="Hide internal subgraph",
+    )
+    app_graph_parser.add_argument(
+        "--no-external",
+        action="store_true",
+        help="Hide cross-app edges",
+    )
+    app_graph_parser.add_argument(
+        "--strip-prefix",
+        action="store_true",
+        default=True,
+        help="Strip <app>. prefix from internal node labels (default: true)",
+    )
+    app_graph_parser.add_argument(
+        "--no-strip-prefix",
+        action="store_false",
+        dest="strip_prefix",
+        help="Keep full module path as label",
+    )
+    app_graph_parser.add_argument(
+        "--exclude",
+        default="",
+        help=(
+            "Comma-separated module-name parts to exclude (additive on top of "
+            "pyproject.toml [tool.grimp-tools].skip_modules). Example: "
+            "--exclude tests,factories"
+        ),
+    )
+    app_graph_parser.add_argument(
+        "--extra-packages",
+        default="",
+        help=(
+            "Comma-separated extra packages beyond pyproject.toml root_packages "
+            "(useful for Django apps in INSTALLED_APPS but missing from "
+            "import-linter config). Example: --extra-packages old,legacy"
+        ),
+    )
+
     args = parser.parse_args()
     if args.command is None:
         parser.print_help()
@@ -113,3 +179,5 @@ def main() -> None:
         run_contracts_graph(output=args.output)
     elif args.command == "focus-graph":
         run_focus_graph(new_ref=args.new, old_ref=args.old, output=args.output)
+    elif args.command == "app-graph":
+        run_app_graph(args)
