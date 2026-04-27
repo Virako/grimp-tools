@@ -222,17 +222,10 @@ wheels = [
 
 [[package]]
 name = "grimp-tools"
-version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "grimp" },
     { name = "import-linter" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "pytest" },
-    { name = "ruff" },
 ]
 
 [package.dev-dependencies]
@@ -246,10 +239,7 @@ dev = [
 requires-dist = [
     { name = "grimp", specifier = ">=3.0" },
     { name = "import-linter", specifier = ">=2.11" },
-    { name = "pytest", marker = "extra == 'dev'" },
-    { name = "ruff", marker = "extra == 'dev'" },
 ]
-provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
 dev = [

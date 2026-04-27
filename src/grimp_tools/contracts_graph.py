@@ -5,6 +5,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from grimp_tools.config import load_root_packages
+from grimp_tools.html import render_page
 
 # --- Mermaid styling constants ---
 
@@ -365,57 +366,45 @@ def _select_renderer(
 # --- HTML output ---
 
 
-def render_html(sections: list[tuple[str, str]]) -> str:
-    """Render HTML with multiple sections (pairs of heading + mermaid)."""
-    body = ""
-    for title, content in sections:
-        if content.startswith("graph ") or content.startswith("flowchart "):
-            body += f"""
-<div class="section">
-  <h3>{title}</h3>
-  <pre class="mermaid">{content}</pre>
-</div>"""
-        else:
-            body += f"""
-<div class="section">
-  <div class="text-block">{title}: {content}</div>
-</div>"""
-
-    return f"""\
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>Architectural Contracts</title>
-<style>
-  body {{ margin: 0; background: #fff; font-family: monospace; padding-bottom: 40px; }}
-  .toolbar {{ display: flex; gap: 12px; align-items: center; padding: 12px 20px;
-              border-bottom: 1px solid #ddd; flex-wrap: wrap; }}
-  .legend {{ display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; }}
-  .legend span {{ display: flex; align-items: center; gap: 4px; }}
-  .edge-sample {{ display: inline-block; width: 40px; height: 2px; vertical-align: middle; }}
+_EXTRA_CSS = f"""
   .edge-allowed {{ background: {ALLOWED_COLOR}; }}
   .edge-debt {{ background: repeating-linear-gradient(90deg, {FORBIDDEN_COLOR} 0 4px, transparent 4px 8px); }}
   .section {{ padding: 16px 20px; border-bottom: 1px solid #eee; }}
   .section h3 {{ margin: 0 0 12px; font-size: 15px; color: #333; }}
   .text-block {{ font-size: 13px; color: #666; padding: 4px 0; }}
-  .mermaid {{ overflow: auto; }}
-</style>
-</head>
-<body>
-<div class="toolbar">
+"""
+
+
+def render_html(sections: list[tuple[str, str]]) -> str:
+    """Render HTML with multiple sections (pairs of heading + mermaid)."""
+    body_parts = [
+        """<div class="toolbar">
   <div class="legend">
     <span><span class="edge-sample edge-allowed"></span> Allowed</span>
     <span><span class="edge-sample edge-debt"></span> Forbidden / Debt</span>
   </div>
-</div>
-{body}
-<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
-<script>
-  mermaid.initialize({{ startOnLoad: true, theme: 'default', securityLevel: 'loose' }});
-</script>
-</body>
-</html>"""
+</div>"""
+    ]
+    for title, content in sections:
+        if content.startswith("graph ") or content.startswith("flowchart "):
+            body_parts.append(
+                f"""<div class="section">
+  <h3>{title}</h3>
+  <pre class="mermaid">{content}</pre>
+</div>"""
+            )
+        else:
+            body_parts.append(
+                f"""<div class="section">
+  <div class="text-block">{title}: {content}</div>
+</div>"""
+            )
+
+    return render_page(
+        title="Architectural Contracts",
+        body="\n".join(body_parts),
+        extra_css=_EXTRA_CSS,
+    )
 
 
 # --- Entry point ---

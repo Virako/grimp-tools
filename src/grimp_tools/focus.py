@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from grimp_tools.config import get_skip_modules, load_root_packages
+from grimp_tools.html import render_page
 
 ADDED = "added"
 MODIFIED = "modified"
@@ -344,40 +345,24 @@ def render_mermaid(
     return "\n".join(lines)
 
 
+_EXTRA_CSS = """
+  .added { background: #c8e6c9; border: 1px solid #2e7d32; }
+  .modified { background: #fff9c4; border: 1px solid #f9a825; }
+  .renamed { background: #bbdefb; border: 1px solid #1565c0; }
+  .deleted { background: #ffcdd2; border: 1px solid #c62828; }
+  .neighbor { background: #f5f5f5; border: 1px solid #999; }
+  .edge-new { background: #2e7d32; }
+  .edge-removed { background: repeating-linear-gradient(90deg, #c62828 0 4px, transparent 4px 8px); }
+  #summary { padding: 12px 20px; font-size: 13px; color: #333; border-bottom: 1px solid #eee;
+              white-space: pre; }
+  #graph { width: 100%; overflow: auto; padding: 20px; box-sizing: border-box; }
+"""
+
+
 def render_html(mermaid_code: str, summary: str) -> str:
     """Render standalone HTML with mermaid graph and summary."""
     summary_html = summary.replace("\n", "<br>")
-    return f"""\
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>Focus Dependency Graph</title>
-<style>
-  body {{ margin: 0; background: #fff; font-family: monospace; }}
-  .toolbar {{ display: flex; gap: 12px; align-items: center; padding: 12px 20px;
-              border-bottom: 1px solid #ddd; flex-wrap: wrap; }}
-  .legend {{ display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; }}
-  .legend span {{ display: flex; align-items: center; gap: 4px; }}
-  .legend .swatch {{ width: 14px; height: 14px; border-radius: 3px; display: inline-block; }}
-  .edge-sample {{ display: inline-block; width: 40px; height: 2px; vertical-align: middle; }}
-  .added {{ background: #c8e6c9; border: 1px solid #2e7d32; }}
-  .modified {{ background: #fff9c4; border: 1px solid #f9a825; }}
-  .renamed {{ background: #bbdefb; border: 1px solid #1565c0; }}
-  .deleted {{ background: #ffcdd2; border: 1px solid #c62828; }}
-  .neighbor {{ background: #f5f5f5; border: 1px solid #999; }}
-  .edge-new {{ background: #2e7d32; }}
-  .edge-removed {{ background: repeating-linear-gradient(90deg, #c62828 0 4px, transparent 4px 8px); }}
-  button {{ padding: 6px 14px; cursor: pointer; font-size: 13px; border: 1px solid #ccc;
-            border-radius: 4px; background: #f9f9f9; }}
-  button:hover {{ background: #eee; }}
-  #summary {{ padding: 12px 20px; font-size: 13px; color: #333; border-bottom: 1px solid #eee;
-              white-space: pre; }}
-  #graph {{ width: 100%; overflow: auto; padding: 20px; box-sizing: border-box; }}
-</style>
-</head>
-<body>
-<div class="toolbar">
+    body = f"""<div class="toolbar">
   <div class="legend">
     <span><span class="swatch added"></span> + Added</span>
     <span><span class="swatch modified"></span> ~ Modified</span>
@@ -393,28 +378,34 @@ def render_html(mermaid_code: str, summary: str) -> str:
   <button onclick="downloadSvg()">Download SVG</button>
 </div>
 <div id="summary">{summary_html}</div>
-<div id="graph"></div>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
-<script>
-  mermaid.initialize({{ startOnLoad: false, theme: 'default', securityLevel: 'loose' }});
-  (async function() {{
-    const container = document.getElementById('graph');
-    const {{ svg }} = await mermaid.render('focus-graph', `{mermaid_code}`);
-    container.innerHTML = svg;
-  }})();
-  function downloadSvg() {{
-    const svg = document.querySelector('#graph svg');
-    if (!svg) {{ alert('Graph not rendered yet'); return; }}
-    const data = new XMLSerializer().serializeToString(svg);
-    const blob = new Blob([data], {{ type: 'image/svg+xml' }});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'focus-graph.svg';
-    a.click();
-  }}
-</script>
-</body>
-</html>"""
+<div id="graph"></div>"""
+
+    scripts = (
+        "<script>"
+        "mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose' });"
+        "(async function() {"
+        "const container = document.getElementById('graph');"
+        f"const {{ svg }} = await mermaid.render('focus-graph', `{mermaid_code}`);"
+        "container.innerHTML = svg;"
+        "})();"
+        "function downloadSvg() {"
+        "const svg = document.querySelector('#graph svg');"
+        "if (!svg) { alert('Graph not rendered yet'); return; }"
+        "const data = new XMLSerializer().serializeToString(svg);"
+        "const blob = new Blob([data], { type: 'image/svg+xml' });"
+        "const a = document.createElement('a');"
+        "a.href = URL.createObjectURL(blob);"
+        "a.download = 'focus-graph.svg';"
+        "a.click();"
+        "}"
+        "</script>"
+    )
+    return render_page(
+        title="Focus Dependency Graph",
+        body=body,
+        extra_css=_EXTRA_CSS,
+        scripts=scripts,
+    )
 
 
 def build_summary(

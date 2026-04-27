@@ -38,6 +38,9 @@ grimp-tools = "grimp_tools.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+grimp_tools = ["templates/*.html"]
+
 [tool.setuptools_scm]
 
 [dependency-groups]
